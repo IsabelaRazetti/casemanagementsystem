@@ -1,25 +1,19 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, CircleCheck, Send } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronUp, CircleCheck, Send } from 'lucide-react'
 import { CUSTOMERS, REASONS, STATUS } from '../state/data.js'
 import { caseCounts } from '../state/reducer.js'
-import { Avatar, Field, StatusLabel, Tabs, TypePill } from '../components/ui.jsx'
-
-function Total({ k, label, count, active, onClick }) {
-  return (
-    <button className="total panel" aria-pressed={active} onClick={onClick}>
-      <span className="bar" style={{ background: k === 'new' ? '#e91c5e' : '#4b752c' }} />
-      <span className="v"><b>{count}</b><span>{label}</span></span>
-    </button>
-  )
-}
+import { Avatar, Button, CaseTypeTag, Data, Field, Panel, StatTile, StatusBadge, Tabs } from '../components/ui.jsx'
 
 function CaseRow({ cs, onOpen }) {
   return (
-    <button className="caserow panel" onClick={onOpen}>
-      <TypePill type={cs.type} />
-      <span className="t">{cs.title}<small>{cs.id} · {CUSTOMERS[cs.customer].name} · {cs.policy}</small></span>
-      <StatusLabel status={cs.status} />
-      <ChevronDown aria-hidden="true" />
+    <button className="caserow" onClick={onOpen}>
+      <CaseTypeTag type={cs.type} />
+      <span className="caserow__main">
+        <span className="caserow__title">{cs.title}</span>
+        <span className="caserow__meta"><Data>{cs.id}</Data><span>·</span><span>{CUSTOMERS[cs.customer].name}</span><span>·</span><Data>{cs.policy}</Data></span>
+      </span>
+      <StatusBadge status={cs.status} />
+      <ChevronRight aria-hidden="true" />
     </button>
   )
 }
@@ -32,7 +26,7 @@ function TaskPanel({ cs, dispatch, notify }) {
   const t = cs.task
 
   if (cs.status === 'done') {
-    return <div className="task"><div className="done-note"><CircleCheck aria-hidden="true" /> {t.title} completed. No open tasks on this case.</div></div>
+    return <div className="done-note"><CircleCheck size={18} aria-hidden="true" /> {t.title} completed. There are no open tasks on this case.</div>
   }
 
   function addReason(r) {
@@ -54,55 +48,55 @@ function TaskPanel({ cs, dispatch, notify }) {
 
   return (
     <div className="task">
-      <div className="task-left">
-        <Avatar initials="R" color="#23a4aa" />
-        <div className="task-info">
-          <div><h3>{t.title}</h3><small>{t.assignee}</small></div>
-          <p>{t.lead}<br />{t.body}</p>
-          <dl className="facts">
-            {t.facts.map(([k, v]) => [<dt key={k}>{k}:</dt>, <dd key={k + 'v'}>{v}</dd>])}
-          </dl>
-          <details className="trigger">
-            <summary>What triggered the referral? <ChevronDown size={16} aria-hidden="true" /></summary>
-            <p>{t.trigger}</p>
-          </details>
+      <div className="task-info">
+        <div className="task-head">
+          <Avatar initials={t.assignee.split(' ').map(w => w[0]).slice(0, 2).join('')} />
+          <div><h3>{t.title}</h3><span className="cw-muted" style={{ fontSize: 12, lineHeight: '16px' }}>Assigned to {t.assignee}</span></div>
         </div>
+        <p style={{ maxWidth: '65ch' }}>{t.lead} {t.body}</p>
+        <dl className="facts">
+          {t.facts.map(([k, v]) => [<dt key={k}>{k}</dt>, <dd key={k + 'v'}>{v}</dd>])}
+        </dl>
+        <details className="trigger">
+          <summary>What triggered this case? <ChevronDown aria-hidden="true" /></summary>
+          <p>{t.trigger}</p>
+        </details>
       </div>
 
-      <div className="task-right">
+      <div className="task-side">
         <div className="actions">
-          <button className="btn btn-outline" aria-expanded={reasonsOpen} onClick={() => setReasonsOpen(o => !o)}>
-            Request more information <ChevronDown size={14} aria-hidden="true" />
-          </button>
-          <button className="btn btn-green" onClick={() => setConfirming(true)}>Complete</button>
+          <Button variant="secondary" aria-expanded={reasonsOpen} onClick={() => setReasonsOpen(o => !o)}>
+            Add a reason <ChevronDown size={16} aria-hidden="true" />
+          </Button>
+          <Button variant="secondary" icon={CircleCheck} onClick={() => setConfirming(true)}>Complete task</Button>
           {reasonsOpen && (
-            <div className="dropdown">
-              {REASONS.map(r => <button key={r} onClick={() => addReason(r)}>{r}</button>)}
+            <div className="popover dropdown" role="menu">
+              {REASONS.map(r => <button key={r} role="menuitem" onClick={() => addReason(r)}>{r}</button>)}
             </div>
           )}
         </div>
 
         {confirming && (
           <div className="confirm">
-            <b>Complete “{t.title}”?</b>
-            <span>The case moves to Done and the customer record is updated.</span>
-            <div>
-              <button className="btn btn-green" onClick={() => { dispatch({ type: 'completeCase', id: cs.id }); notify(`${cs.id} moved to Done`) }}>Yes, complete</button>
-              <button className="btn btn-outline" onClick={() => setConfirming(false)}>Cancel</button>
+            <b style={{ fontWeight: 500 }}>Complete “{t.title}”?</b>
+            <p>The case moves to Done and the customer record is updated.</p>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <Button variant="primary" onClick={() => { dispatch({ type: 'completeCase', id: cs.id }); notify(`${cs.id} moved to Done`) }}>Complete task</Button>
+              <Button variant="ghost" onClick={() => setConfirming(false)}>Cancel</Button>
             </div>
           </div>
         )}
 
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }} noValidate>
-          <Field id={`req-${cs.id}`} label="Request more information" error={error}>
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }} noValidate>
+          <Field id={`req-${cs.id}`} label="Request more information" error={error} hint="The customer receives this by email.">
             <textarea
-              id={`req-${cs.id}`} rows={8} value={draft} placeholder="Write the reason for the request"
+              id={`req-${cs.id}`} className="cw-input" rows={7} value={draft} placeholder="Write what you need from the customer"
               aria-invalid={!!error} aria-describedby={error ? `req-${cs.id}-err` : undefined}
               onChange={e => { setDraft(e.target.value); if (error) setError('') }}
             />
           </Field>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="btn btn-pink"><Send size={14} aria-hidden="true" /> Send request</button>
+            <Button type="submit" variant="primary" icon={Send}>Send request</Button>
           </div>
         </form>
       </div>
@@ -116,56 +110,46 @@ function CaseCard({ cs, tab, dispatch, notify, go }) {
   const openCustomer = e => { e.preventDefault(); dispatch({ type: 'pickCustomer', id: cu.id }); go('customer') }
 
   return (
-    <article className="casecard panel">
+    <Panel as="article" className="casecard">
       <div className="case-title">
-        <TypePill type={cs.type} />
+        <CaseTypeTag type={cs.type} />
         <h2>{cs.title}</h2>
-        <StatusLabel status={cs.status} />
-        <button className="collapse" aria-label="Collapse case" onClick={() => dispatch({ type: 'collapseCase' })}><ChevronUp /></button>
+        <StatusBadge status={cs.status} />
+        <Button variant="ghost" iconOnly icon={ChevronUp} aria-label="Collapse case" title="Collapse case" onClick={() => dispatch({ type: 'collapseCase' })} />
       </div>
-      <hr className="divider" />
-      <div className="overview">
-        <div className="submitted">
-          <Avatar initials={cs.byInitials} color="#5c7297" />
-          <div className="meta"><b>Submitted by:</b><span>{cs.by}</span></div>
-        </div>
-        <div className="meta"><b>Channel:</b><span>{cs.channel}</span></div>
-        <div className="meta"><b>Policy Expire Date:</b><span>{cs.expiry}</span></div>
-        <div className="meta"><b>Policy number:</b><a href="#customer" onClick={openCustomer}>{cs.policy}</a></div>
-      </div>
-      <hr className="divider" />
+      <dl className="overview">
+        <div className="meta"><dt>Submitted by</dt><dd className="submitted"><Avatar initials={cs.byInitials} size="sm" />{cs.by}</dd></div>
+        <div className="meta"><dt>Channel</dt><dd>{cs.channel}</dd></div>
+        <div className="meta"><dt>Policy expiry</dt><dd><Data>{cs.expiry}</Data></dd></div>
+        <div className="meta"><dt>Policy number</dt><dd><a href="#customer" onClick={openCustomer} style={{ color: 'var(--accent)' }}><Data>{cs.policy}</Data></a></dd></div>
+      </dl>
       <Tabs
-        value={tab}
-        onChange={v => dispatch({ type: 'caseTab', value: v })}
-        tabs={[['tasks', `Tasks (${cs.status === 'done' ? 0 : 1})`], ['info', 'Case information'], ['customer', 'Customer information']]}
+        label="Case" value={tab} onChange={v => dispatch({ type: 'caseTab', value: v })}
+        tabs={[['tasks', 'Tasks', cs.status === 'done' ? 0 : 1], ['info', 'Case information'], ['customer', 'Customer information']]}
       />
       {tab === 'tasks' && <TaskPanel key={cs.id} cs={cs} dispatch={dispatch} notify={notify} />}
       {tab === 'info' && (
-        <div className="task">
-          <dl className="kv">
-            <dt>Case ID</dt><dd>{cs.id}</dd>
-            <dt>Type</dt><dd>{cs.type}</dd>
-            <dt>Status</dt><dd><StatusLabel status={cs.status} /></dd>
-            <dt>Channel</dt><dd>{cs.channel}</dd>
-            <dt>Owner</dt><dd>{t.assignee}</dd>
-            <dt>Policy / RFQ</dt><dd>{cs.policy}</dd>
-            <dt>Trigger</dt><dd>{t.trigger}</dd>
-          </dl>
-        </div>
+        <dl className="kv">
+          <dt>Case ID</dt><dd><Data>{cs.id}</Data></dd>
+          <dt>Type</dt><dd>{cs.type}</dd>
+          <dt>Status</dt><dd><StatusBadge status={cs.status} /></dd>
+          <dt>Channel</dt><dd>{cs.channel}</dd>
+          <dt>Owner</dt><dd>{t.assignee}</dd>
+          <dt>Policy or RFQ</dt><dd><Data>{cs.policy}</Data></dd>
+          <dt>Trigger</dt><dd style={{ maxWidth: '65ch' }}>{t.trigger}</dd>
+        </dl>
       )}
       {tab === 'customer' && (
-        <div className="task">
-          <dl className="kv">
-            <dt>Customer</dt><dd>{cu.title} {cu.name}</dd>
-            <dt>Company</dt><dd>{cu.company}</dd>
-            <dt>Email</dt><dd>{cu.email}</dd>
-            <dt>Phone</dt><dd>{cu.phone}</dd>
-            <dt>Address</dt><dd>{cu.address}</dd>
-            <dt /><dd><button className="linkbtn" onClick={openCustomer}>Open customer workspace</button></dd>
-          </dl>
-        </div>
+        <dl className="kv">
+          <dt>Customer</dt><dd>{cu.title} {cu.name}</dd>
+          <dt>Company</dt><dd>{cu.company}</dd>
+          <dt>Email</dt><dd>{cu.email}</dd>
+          <dt>Phone</dt><dd><Data>{cu.phone}</Data></dd>
+          <dt>Address</dt><dd>{cu.address}</dd>
+          <dt /><dd><button className="linkbtn" onClick={openCustomer}>Open customer workspace</button></dd>
+        </dl>
       )}
-    </article>
+    </Panel>
   )
 }
 
@@ -176,24 +160,25 @@ export default function Cases({ state, dispatch, notify, go }) {
   const toggle = value => dispatch({ type: 'filter', value })
 
   return (
-    <div className="cases">
-      <div className="totals">
-        <Total k="new" label="New cases" count={counts.new} active={filter === 'new'} onClick={() => toggle('new')} />
-        <Total k="progress" label="In progress" count={counts.progress} active={filter === 'progress'} onClick={() => toggle('progress')} />
-        <Total k="done" label="Done" count={counts.done} active={filter === 'done'} onClick={() => toggle('done')} />
+    <div className="page">
+      <div className="page__head">
+        <div>
+          <h1 className="page__title">My cases</h1>
+          <p className="page__sub">{filter ? `Showing ${STATUS[filter].label.toLowerCase()} cases.` : 'All cases assigned to you and your team.'}</p>
+        </div>
+        {filter && <Button variant="ghost" size="sm" onClick={() => toggle(filter)}>Show all cases</Button>}
       </div>
-      <div className="cases-head">
-        <h1>My Cases</h1>
-        {filter && <button className="clearf" onClick={() => toggle(filter)}>Showing {STATUS[filter].label.toLowerCase()} · show all</button>}
+      <div className="totals">
+        <StatTile value={counts.new} label="New" status="new" pressed={filter === 'new'} onClick={() => toggle('new')} />
+        <StatTile value={counts.progress} label="In progress" status="progress" pressed={filter === 'progress'} onClick={() => toggle('progress')} />
+        <StatTile value={counts.done} label="Done" status="done" pressed={filter === 'done'} onClick={() => toggle('done')} />
       </div>
       <div className="caselist">
         {list.length ? list.map(cs => cs.id === state.openCase
           ? <CaseCard key={cs.id} cs={cs} tab={state.caseTab} dispatch={dispatch} notify={notify} go={go} />
           : <CaseRow key={cs.id} cs={cs} onOpen={() => dispatch({ type: 'openCase', id: cs.id })} />
         ) : (
-          <div className="panel empty" style={{ padding: 28 }}>
-            No {filter ? STATUS[filter].label.toLowerCase() : ''} cases yet. Complete a task to see it here.
-          </div>
+          <Panel><p className="cw-muted">No {filter ? STATUS[filter].label.toLowerCase() : ''} cases yet. Complete a task and it will appear here.</p></Panel>
         )}
       </div>
     </div>

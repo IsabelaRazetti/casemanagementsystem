@@ -1,0 +1,99 @@
+/* Casework — generated from the design system's tokens.json. Edit the tokens there, not here. */
+:root {
+  --canvas: #f5f5f3;
+  --surface: #ffffff;
+  --surface-sunken: #efefec;
+  --line: #e3e3de;
+  --line-field: #8c8c85;
+  --ink: #17181b;
+  --ink-muted: #5d5e66;
+  --accent: #b3165c;
+  --accent-soft: #fbe9f1;
+  --on-accent: #ffffff;
+  --focus-ring: var(--accent);
+  --nav: #1b2232;
+  --on-nav: #eceef3;
+  --on-nav-muted: #9aa3b6;
+  --status-new: #2350b8;
+  --status-new-soft: #e8eefb;
+  --status-progress: #8a5300;
+  --status-progress-soft: #fcf1dc;
+  --status-done: #1d7347;
+  --status-done-soft: #e1f3e8;
+  --danger: #c22d1b;
+  --danger-soft: #fde8e5;
+  --on-status: #ffffff;
+  --shadow-raised: 0 1px 2px rgba(23,24,27,0.06);
+  --shadow-overlay: 0 12px 32px rgba(23,24,27,0.14);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #111214;
+    --surface: #1a1b1f;
+    --surface-sunken: #151619;
+    --line: #2b2c32;
+    --line-field: #6e7079;
+    --ink: #ececef;
+    --ink-muted: #a3a4ad;
+    --accent: #ff6fa6;
+    --accent-soft: #3b1428;
+    --on-accent: #1a0b12;
+    --nav: #0b0d12;
+    --on-nav: #e6e8ee;
+    --on-nav-muted: #8a93a6;
+    --status-new: #8fb1ff;
+    --status-new-soft: #17223d;
+    --status-progress: #f0bd5c;
+    --status-progress-soft: #30240b;
+    --status-done: #6fd19c;
+    --status-done-soft: #0f2a1c;
+    --danger: #ff8b78;
+    --danger-soft: #3b1611;
+    --on-status: #111214;
+    --shadow-raised: 0 1px 2px rgba(0,0,0,0.4);
+    --shadow-overlay: 0 12px 32px rgba(0,0,0,0.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --canvas: #111214;
+  --surface: #1a1b1f;
+  --surface-sunken: #151619;
+  --line: #2b2c32;
+  --line-field: #6e7079;
+  --ink: #ececef;
+  --ink-muted: #a3a4ad;
+  --accent: #ff6fa6;
+  --accent-soft: #3b1428;
+  --on-accent: #1a0b12;
+  --nav: #0b0d12;
+  --on-nav: #e6e8ee;
+  --on-nav-muted: #8a93a6;
+  --status-new: #8fb1ff;
+  --status-new-soft: #17223d;
+  --status-progress: #f0bd5c;
+  --status-progress-soft: #30240b;
+  --status-done: #6fd19c;
+  --status-done-soft: #0f2a1c;
+  --danger: #ff8b78;
+  --danger-soft: #3b1611;
+  --on-status: #111214;
+  --shadow-raised: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-overlay: 0 12px 32px rgba(0,0,0,0.55);
+  color-scheme: dark;
+}

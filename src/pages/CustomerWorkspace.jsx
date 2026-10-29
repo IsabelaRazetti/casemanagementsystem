@@ -4,7 +4,7 @@ import {
 } from 'lucide-react'
 import { AGENT, CUSTOMERS, TASK_ORDER, TEAMS } from '../state/data.js'
 import { callSeconds, formatDuration } from '../state/reducer.js'
-import { ActivityList, Avatar, Field, StatusLabel, Tabs } from '../components/ui.jsx'
+import { ActivityList, Avatar, Button, Data, Field, Panel, StatusBadge, Tabs } from '../components/ui.jsx'
 import DocModal from '../components/DocModal.jsx'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -14,7 +14,7 @@ function TaskItem({ id, current, onPick }) {
   const c = CUSTOMERS[id]
   return (
     <button className="ctask" aria-current={current} onClick={() => onPick(id)}>
-      <Avatar initials={c.initials} color={c.taskColor} />
+      <Avatar initials={c.initials} />
       <span><b>{c.name}</b><small>{c.note}</small></span>
     </button>
   )
@@ -25,48 +25,51 @@ function CallCard({ cu, call, now, dispatch, notify }) {
   const status = call.customer === cu.id ? call.state : 'idle'
 
   let line = 'Not on a call'
-  if (status === 'ringing') line = 'Incoming call…'
+  if (status === 'ringing') line = 'Incoming call'
   else if (status === 'active') line = `On call · ${formatDuration(callSeconds(call, now))}`
   else if (call.customer === cu.id && call.total) line = `Last call ${formatDuration(call.total)}`
 
   return (
     <div className="callcard">
-      <Avatar initials={cu.initials} color={cu.color} size="xl" />
+      <Avatar initials={cu.initials} size="xl" />
       <div>
-        <h2>{cu.direction}: {cu.title} {cu.name}</h2>
-        <span className="queue">{cu.queue}</span>
-        <span className="ctime">{line}</span>
+        <h2 className="callcard__name">{cu.title} {cu.name}</h2>
+        <div className="callcard__queue">
+          <span className="cw-tag">{cu.direction === 'IB' ? 'Inbound' : 'Outbound'} · {cu.queue}</span>
+        </div>
+        <p className={`cw-timer${status === 'active' ? ' cw-live' : ''}`} style={{ marginTop: 'var(--space-2)' }}>{line}</p>
       </div>
 
       {status === 'ringing' && (
-        <div className="controls">
-          <button className="ctl answer" aria-label="Answer call" onClick={() => { dispatch({ type: 'answer' }); notify('Call connected') }}><Phone /></button>
-          <button className="ctl end" aria-label="Decline call" onClick={() => { dispatch({ type: 'decline' }); notify('Call declined') }}><PhoneOff /></button>
+        <div className="cw-call">
+          <button className="cw-call__btn cw-call__btn--answer" aria-label="Answer call" title="Answer call" onClick={() => { dispatch({ type: 'answer' }); notify('Call connected') }}><Phone /></button>
+          <button className="cw-call__btn cw-call__btn--end" aria-label="Decline call" title="Decline call" onClick={() => { dispatch({ type: 'decline' }); notify('Call declined') }}><PhoneOff /></button>
         </div>
       )}
       {status === 'active' && (
         <>
-          <div className="controls">
-            <button className="ctl" aria-label="Call details" onClick={() => notify('Call recording is on for quality and training')}><PhoneCall /></button>
-            <button className="ctl end" aria-label="End call" onClick={() => {
+          <div className="cw-call">
+            <button className="cw-call__btn" aria-label="Call details" title="Call details" onClick={() => notify('Call recording is on for quality and training')}><PhoneCall /></button>
+            <button className="cw-call__btn cw-call__btn--end" aria-label="End call" title="End call" onClick={() => {
               dispatch({ type: 'endCall' }); setTransferOpen(false); notify(`Call ended · ${formatDuration(callSeconds(call))}`)
-            }}><Phone /></button>
-            <button className="ctl" aria-label="Transfer call" aria-expanded={transferOpen} onClick={() => setTransferOpen(o => !o)}><PhoneForwarded /></button>
+            }}><PhoneOff /></button>
+            <button className="cw-call__btn" aria-label="Transfer call" title="Transfer call" aria-expanded={transferOpen} onClick={() => setTransferOpen(o => !o)}><PhoneForwarded /></button>
           </div>
           {transferOpen && (
             <div className="transfer">
               {TEAMS.slice(0, 6).map(t => (
-                <button key={t.name} onClick={() => { dispatch({ type: 'transfer', team: t.name }); setTransferOpen(false); notify(`Transferred to ${t.name}`) }}>{t.name}</button>
+                <Button key={t.name} variant="secondary" size="sm" onClick={() => { dispatch({ type: 'transfer', team: t.name }); setTransferOpen(false); notify(`Transferred to ${t.name}`) }}>{t.name}</Button>
               ))}
             </div>
           )}
         </>
       )}
       {status === 'idle' && (
-        <div className="controls">
+        <div className="cw-call">
           <button
-            className="ctl answer" aria-label={`Call ${cu.name}`}
-            disabled={call.state === 'active'} title={call.state === 'active' ? 'Finish your current call first' : undefined}
+            className="cw-call__btn cw-call__btn--answer" aria-label={`Call ${cu.name}`}
+            disabled={call.state === 'active'} title={call.state === 'active' ? 'Finish your current call first' : `Call ${cu.name}`}
+            style={call.state === 'active' ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
             onClick={() => { dispatch({ type: 'dial' }); notify(`Calling ${cu.name}`) }}
           ><PhoneCall /></button>
         </div>
@@ -115,64 +118,54 @@ function Composer({ cu, channel, dispatch, notify, email, setEmail }) {
   }
 
   const set = key => e => { setEmail(m => ({ ...m, [key]: e.target.value })); if (errors[key]) setErrors(x => ({ ...x, [key]: undefined })) }
+  const described = key => (errors[key] ? `${key === 'to' ? 'em-to' : key === 'subject' ? 'em-subject' : 'em-body'}-err` : undefined)
 
   if (channel === 'email') return (
-    <>
-      <h3>Email</h3>
-      <hr className="divider" />
-      <form onSubmit={sendEmail} noValidate>
-        <Field id="em-to" label="Email address" error={errors.to}>
-          <input id="em-to" type="email" value={email.to} onChange={set('to')} placeholder={cu.email} aria-invalid={!!errors.to} />
-        </Field>
-        <Field id="em-subject" label="Subject" error={errors.subject}>
-          <input id="em-subject" value={email.subject} onChange={set('subject')} placeholder="Add subject" aria-invalid={!!errors.subject} />
-        </Field>
-        <Field id="em-body" label="Write email" error={errors.body}>
-          <textarea id="em-body" rows={8} value={email.body} onChange={set('body')} placeholder="Write the email" aria-invalid={!!errors.body} />
-        </Field>
-        <div className="row">
-          <button type="button" className="btn btn-outline" onClick={applyTemplate}>Use renewal template</button>
-          <button className="btn btn-pink"><Send size={14} aria-hidden="true" /> Send email</button>
-        </div>
-      </form>
-    </>
+    <form onSubmit={sendEmail} noValidate>
+      <Field id="em-to" label="To" error={errors.to}>
+        <input id="em-to" className="cw-input" type="email" value={email.to} onChange={set('to')} placeholder={cu.email} aria-invalid={!!errors.to} aria-describedby={described('to')} />
+      </Field>
+      <Field id="em-subject" label="Subject" error={errors.subject}>
+        <input id="em-subject" className="cw-input" value={email.subject} onChange={set('subject')} placeholder="Add a subject" aria-invalid={!!errors.subject} aria-describedby={described('subject')} />
+      </Field>
+      <Field id="em-body" label="Message" error={errors.body}>
+        <textarea id="em-body" className="cw-input" rows={8} value={email.body} onChange={set('body')} placeholder="Write the email" aria-invalid={!!errors.body} aria-describedby={described('body')} />
+      </Field>
+      <div className="row">
+        <Button variant="secondary" icon={FileText} onClick={applyTemplate}>Use renewal template</Button>
+        <Button type="submit" variant="primary" icon={Send}>Send email</Button>
+      </div>
+    </form>
   )
 
   if (channel === 'chat' || channel === 'note') {
     const isNote = channel === 'note'
     return (
-      <>
-        <h3>{isNote ? 'Internal note' : 'Customer chat'}</h3>
-        <hr className="divider" />
-        <form onSubmit={sendText(channel)} noValidate>
-          <Field id={channel} label={isNote ? 'Only your team can see this' : `Message to ${cu.name}`} error={errors[channel]}>
-            <textarea
-              id={channel} rows={isNote ? 6 : 5} value={text[channel]}
-              placeholder={isNote ? 'e.g. Customer will send accounts by Friday' : 'Write a chat message'}
-              onChange={e => { const v = e.target.value; setText(t => ({ ...t, [channel]: v })) }}
-            />
-          </Field>
-          <div className="row">
-            <button className="btn btn-pink">
-              {isNote ? <StickyNote size={14} aria-hidden="true" /> : <Send size={14} aria-hidden="true" />} {isNote ? 'Save note' : 'Send message'}
-            </button>
-          </div>
-        </form>
-      </>
+      <form onSubmit={sendText(channel)} noValidate>
+        <Field
+          id={channel} label={isNote ? 'Internal note' : `Message to ${cu.name}`} error={errors[channel]}
+          hint={isNote ? 'Only your team can see notes.' : 'The customer sees this in their chat window.'}
+        >
+          <textarea
+            id={channel} className="cw-input" rows={isNote ? 6 : 5} value={text[channel]}
+            placeholder={isNote ? 'For example: customer will send accounts by Friday' : 'Write a chat message'}
+            onChange={e => { const v = e.target.value; setText(t => ({ ...t, [channel]: v })) }}
+          />
+        </Field>
+        <div className="row">
+          <Button type="submit" variant="primary" icon={isNote ? StickyNote : Send}>{isNote ? 'Save note' : 'Send message'}</Button>
+        </div>
+      </form>
     )
   }
 
   return (
-    <>
-      <h3>Contact preferences</h3>
-      <hr className="divider" />
-      <dl className="kv">
-        <dt>Preferred channel</dt><dd>Email</dd>
-        <dt>Marketing</dt><dd>Opted out</dd>
-        <dt>Best time to call</dt><dd>9:00 to 12:00</dd>
-        <dt>Language</dt><dd>English</dd>
-      </dl>
-    </>
+    <dl className="kv">
+      <dt>Preferred channel</dt><dd>Email</dd>
+      <dt>Marketing</dt><dd>Opted out</dd>
+      <dt>Best time to call</dt><dd><Data>09:00–12:00</Data></dd>
+      <dt>Language</dt><dd>English</dd>
+    </dl>
   )
 }
 
@@ -182,33 +175,31 @@ function Records({ cu, state, dispatch, go, onOpenDoc }) {
   const tab = state.recordTab
 
   return (
-    <section className="records panel">
+    <Panel className="records">
       <Tabs
-        spread value={tab} onChange={v => dispatch({ type: 'recordTab', value: v })}
-        tabs={[['info', 'Customer information'], ['cases', `Cases (${cases.length})`], ['policies', `Policies (${cu.policies.length})`], ['rfqs', `RFQs (${cu.rfqs.length})`]]}
+        label="Customer record" value={tab} onChange={v => dispatch({ type: 'recordTab', value: v })}
+        tabs={[['info', 'Overview'], ['cases', 'Cases', cases.length], ['policies', 'Policies', cu.policies.length], ['rfqs', 'Quotes', cu.rfqs.length]]}
       />
 
       {tab === 'info' && (
         <>
-          <h3>Personal information</h3>
-          <hr className="divider" />
-          <div className="pdetails">
-            <p><strong>Company:</strong> {cu.company}</p>
-            <p><strong>Address:</strong> {cu.address}</p>
-            <p><strong>Phone number:</strong> {cu.phone}</p>
-          </div>
+          <h3>{cu.company}</h3>
+          <dl className="kv">
+            <dt>Address</dt><dd>{cu.address}</dd>
+            <dt>Phone</dt><dd><Data>{cu.phone}</Data></dd>
+            <dt>Email</dt><dd>{cu.email}</dd>
+            <dt>Policy</dt><dd><Data>{cu.policies[0].num}</Data></dd>
+          </dl>
+          <hr className="cw-divider" />
           <h3>Documents</h3>
-          <hr className="divider" />
           <div className="docs">
             {cu.docs.map(d => (
               <button key={d} className="doc" onClick={() => onOpenDoc(d)}><FileText aria-hidden="true" /><span>{d}</span></button>
             ))}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 14 }}>
-            <h3>Activity log</h3>
-            <hr className="divider" />
-            <ActivityList items={activity} empty="No activity yet. Emails and notes you send appear here." />
-          </div>
+          <hr className="cw-divider" />
+          <h3>Activity log</h3>
+          <ActivityList items={activity} empty="No activity yet. Emails, calls and notes appear here." />
         </>
       )}
 
@@ -216,10 +207,10 @@ function Records({ cu, state, dispatch, go, onOpenDoc }) {
         <div className="rlist">
           {cases.length ? cases.map(cs => (
             <div key={cs.id}>
-              <span><b>{cs.title}</b><small>{cs.id} · {cs.policy}</small></span>
-              <span style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                <StatusLabel status={cs.status} />
-                <button className="linkbtn" onClick={() => { dispatch({ type: 'openCase', id: cs.id }); go('cases') }}>Open</button>
+              <span><b>{cs.title}</b><small><Data>{cs.id}</Data> · <Data>{cs.policy}</Data></small></span>
+              <span style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+                <StatusBadge status={cs.status} />
+                <Button variant="ghost" size="sm" onClick={() => { dispatch({ type: 'openCase', id: cs.id }); go('cases') }}>Open</Button>
               </span>
             </div>
           )) : <div className="empty">No cases for this customer.</div>}
@@ -229,7 +220,7 @@ function Records({ cu, state, dispatch, go, onOpenDoc }) {
       {tab === 'policies' && (
         <div className="rlist">
           {cu.policies.map(p => (
-            <div key={p.num}><span><b>{p.num}</b><small>{p.product} · renews {p.renews}</small></span><span className="status">{p.status}</span></div>
+            <div key={p.num}><span><Data>{p.num}</Data><small>{p.product} · renews {p.renews}</small></span><span className="cw-tag">{p.status}</span></div>
           ))}
         </div>
       )}
@@ -237,11 +228,11 @@ function Records({ cu, state, dispatch, go, onOpenDoc }) {
       {tab === 'rfqs' && (
         <div className="rlist">
           {cu.rfqs.length ? cu.rfqs.map(r => (
-            <div key={r.num}><span><b>{r.num}</b><small>{r.product}</small></span><span className="status">{r.when}</span></div>
-          )) : <div className="empty">No open quotes.</div>}
+            <div key={r.num}><span><Data>{r.num}</Data><small>{r.product}</small></span><span className="cw-muted">{r.when}</span></div>
+          )) : <div className="empty">No open quotes for this customer.</div>}
         </div>
       )}
-    </section>
+    </Panel>
   )
 }
 
@@ -261,33 +252,27 @@ export default function CustomerWorkspace({ state, dispatch, notify, go, now }) 
 
   return (
     <div className="cust">
-      <aside className="tasklist panel">
-        <h2>Tasks (1)</h2>
+      <Panel as="aside" className="tasklist">
+        <h2>Now</h2>
         <TaskItem id={current} current={state.currentCustomer === current} onPick={pick} />
-        <hr className="divider" />
-        <h2>Upcoming tasks ({upcoming.length})</h2>
-        {upcoming.map((id, i) => (
-          <div key={id} style={{ display: 'contents' }}>
-            <TaskItem id={id} current={state.currentCustomer === id} onPick={pick} />
-            {i < upcoming.length - 1 && <hr className="divider" />}
-          </div>
-        ))}
-      </aside>
+        <h2>Up next · {upcoming.length}</h2>
+        {upcoming.map(id => <TaskItem key={id} id={id} current={state.currentCustomer === id} onPick={pick} />)}
+      </Panel>
 
-      <section className="contact panel">
+      <Panel className="contact">
         <CallCard cu={cu} call={state.call} now={now} dispatch={dispatch} notify={notify} />
         <div className="composer">
-          <div className="channels" role="tablist">
+          <div className="cw-tabs" role="tablist" aria-label="Contact channel">
             {CHANNELS.map(([key, Icon, label]) => (
-              <button key={key} role="tab" aria-label={label} title={label} aria-selected={state.channel === key}
+              <button key={key} type="button" role="tab" className="cw-tab" aria-selected={state.channel === key}
                 onClick={() => dispatch({ type: 'channel', value: key })}>
-                <Icon aria-hidden="true" />
+                <Icon size={16} aria-hidden="true" />{label}
               </button>
             ))}
           </div>
           <Composer cu={cu} channel={state.channel} dispatch={dispatch} notify={notify} email={email} setEmail={setEmail} />
         </div>
-      </section>
+      </Panel>
 
       <Records cu={cu} state={state} dispatch={dispatch} go={go} onOpenDoc={setDoc} />
 

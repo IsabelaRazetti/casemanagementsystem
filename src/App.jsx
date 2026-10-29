@@ -70,7 +70,7 @@ export default function App() {
   const props = { state, dispatch, notify, go, now }
 
   return (
-    <div className="app">
+    <div className="app cw-root">
       <NavRail route={route} />
       <div className="workspace">
         <UtilityBar {...props} />

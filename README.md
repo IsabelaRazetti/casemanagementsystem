@@ -46,14 +46,26 @@ Requires Node 18 or later.
 | Persistence | `localStorage` | The demo survives a page refresh without a backend |
 | Routing | URL hash (`#dashboard`, `#cases`, `#customer`) | Shareable links to each screen with no router dependency |
 | Icons | `lucide-react` | Same icon set used in the Figma file |
-| Styling | Plain CSS with design tokens from Figma | Colours, spacing and type match the designs exactly |
+| Styling | Casework design system: CSS custom properties (tokens) + component classes | One source for every colour, size and radius; light and dark themes for free |
 
 ```
 src/
   state/        data.js (sample data), reducer.js (all state changes), reducer.test.js
-  components/   NavRail, UtilityBar, DocModal, Toast, shared ui pieces
+  styles/       tokens.css (design tokens), components.css (Casework components), app.css (layout)
+  components/   ui.jsx (Casework components in React), NavRail, UtilityBar, DocModal, Toast
   pages/        Dashboard, Cases, CustomerWorkspace
 ```
+
+## Design system: Casework
+
+The UI is built on **Casework**, a small design system made for this product.
+
+- **Tokens** (`src/styles/tokens.css`): 23 colour tokens with light and dark values, a 4px spacing scale, four radii and two shadows. Nothing in the app uses a raw colour or size.
+- **Type**: Geist for the interface in six steps, and Geist Mono for anything an agent reads out or copies (policy numbers, case IDs, premiums, call timers).
+- **Components** (`src/components/ui.jsx` + `src/styles/components.css`): Button, Avatar, StatusBadge, CaseTypeTag, Field, Tabs, Panel, StatTile, ActivityItem, CallControls and Toast.
+- **Rules**: one accent colour reserved for the main action; case status always shown with a word and a dot, never colour alone; every text colour meets WCAG AA contrast in both themes; visible keyboard focus everywhere.
+
+The full documentation (tokens, voice and tone, and a live preview of every component) lives in the Casework design system page.
 
 ## Accessibility
 
