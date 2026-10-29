@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, RotateCcw, Search, Video } from 'lucide-react'
+import { ChevronDown, Play, RotateCcw, Search, Video } from 'lucide-react'
+import { SCENARIOS, SCENARIO_ORDER } from '../state/scenarios.js'
 import { AGENT, CUSTOMERS } from '../state/data.js'
 import { callSeconds, formatDuration } from '../state/reducer.js'
-import { Avatar, Data } from './ui.jsx'
+import { Avatar, Button, Data } from './ui.jsx'
 
 const PRESENCES = ['Available', 'Busy', 'Offline']
 
@@ -35,11 +36,14 @@ function searchAll(query, cases) {
 export default function UtilityBar({ state, dispatch, notify, go, now }) {
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [demoOpen, setDemoOpen] = useState(false)
   const searchRef = useRef()
+  const demoRef = useRef()
   const inputRef = useRef()
   const menuRef = useRef()
   useOutsideClick(searchRef, () => setQuery(''))
   useOutsideClick(menuRef, () => setMenuOpen(false))
+  useOutsideClick(demoRef, () => setDemoOpen(false))
 
   // "/" focuses search, like most work tools.
   useEffect(() => {
@@ -68,9 +72,20 @@ export default function UtilityBar({ state, dispatch, notify, go, now }) {
     }
   }
 
+  const who = call.customer ? CUSTOMERS[call.customer].name : ''
+  const sms = call.channel === 'sms'
   const callLabel = live
-    ? <span className="cw-live">{CUSTOMERS[call.customer].name} · <span className="cw-timer">{formatDuration(callSeconds(call, now))}</span></span>
-    : call.state === 'ringing' ? 'Incoming call' : presence === 'Offline' ? 'Offline' : 'No active call'
+    ? <span className="cw-live">{who} · <span className="cw-timer">{formatDuration(callSeconds(call, now))}</span></span>
+    : call.state === 'ringing' ? `${sms ? 'Incoming SMS' : 'Incoming call'} · ${who}`
+    : call.state === 'ivr' ? `Virtual assistant · ${who}`
+    : presence === 'Offline' ? 'Offline' : 'No active contact'
+  const contactWaiting = ['ringing', 'ivr', 'active'].includes(call.state)
+
+  function simulate(id) {
+    setDemoOpen(false)
+    dispatch({ type: 'simulateContact', id })
+    go('customer')
+  }
 
   return (
     <header className="utility">
@@ -100,9 +115,38 @@ export default function UtilityBar({ state, dispatch, notify, go, now }) {
         )}
       </div>
 
-      <div className="callstat">
-        <Video aria-hidden="true" />
-        <span>{callLabel}</span>
+      {contactWaiting ? (
+        <button className="callstat callstat--link" onClick={() => go('customer')} title="Open customer workspace">
+          <Video aria-hidden="true" />
+          <span>{callLabel}</span>
+        </button>
+      ) : (
+        <div className="callstat">
+          <Video aria-hidden="true" />
+          <span>{callLabel}</span>
+        </div>
+      )}
+
+      <div className="demo" ref={demoRef}>
+        <Button
+          variant="ghost" size="sm" icon={Play} aria-haspopup="true" aria-expanded={demoOpen}
+          disabled={live} title={live ? 'Finish the current contact first' : 'Send a demo contact through the virtual assistant'}
+          onClick={() => setDemoOpen(o => !o)}
+        >Simulate contact</Button>
+        {demoOpen && (
+          <div className="popover demo__menu" role="menu">
+            <span className="demo__label">Demo · contact goes through the virtual assistant</span>
+            {SCENARIO_ORDER.map(id => {
+              const sc = SCENARIOS[id]
+              return (
+                <button key={id} role="menuitem" onClick={() => simulate(id)}>
+                  <Avatar initials={CUSTOMERS[sc.customer].initials} size="sm" />
+                  <span><b style={{ fontWeight: 500 }}>{CUSTOMERS[sc.customer].name}</b><small>{sc.label}</small></span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <div className="usermenu" ref={menuRef}>

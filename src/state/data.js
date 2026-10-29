@@ -1,4 +1,5 @@
 // All people, companies and policies below are fictional sample data for the prototype.
+import { cachedSummary } from '../ai/assistant.js'
 
 export const AGENT = { name: 'Anna Montoya', initials: 'AM', color: '#63759a' }
 
@@ -65,7 +66,7 @@ export const NEWS = [
   ['Customer satisfaction up 6 points this quarter', 'linear-gradient(135deg,#4a3a8c,#c74d9b)'],
 ]
 
-export const STATE_VERSION = 1
+export const STATE_VERSION = 2
 
 let uid = 0
 export const nextId = () => `a${Date.now().toString(36)}${(uid++).toString(36)}`
@@ -74,7 +75,8 @@ export function seed() {
   return {
     version: STATE_VERSION,
     presence: 'Available',
-    call: { state: 'ringing', customer: 'mm', start: 0, total: 0 },
+    // The demo opens with Marina already handed over by the virtual assistant.
+    call: { state: 'ringing', customer: 'mm', channel: 'call', scenario: 'mm-referral', summary: cachedSummary('mm-referral'), start: 0, total: 0 },
     metrics: { calls: 0, emails: 0, chats: 0, support: 0 },
     currentCustomer: 'mm',
     filter: null,

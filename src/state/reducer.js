@@ -1,4 +1,5 @@
 import { AGENT, CUSTOMERS, nextId, seed } from './data.js'
+import { SCENARIOS } from './scenarios.js'
 
 /** Formats a number of seconds as "42s" or "3m 07s". */
 export function formatDuration(seconds) {
@@ -24,7 +25,14 @@ function withLog(state, text, customer = null) {
   return { ...state, activity: [entry, ...state.activity.map(a => (a.fresh ? { ...a, fresh: false } : a))] }
 }
 
-const bump = (state, key) => ({ ...state, metrics: { ...state.metrics, [key]: state.metrics[key] + 1 } })
+export const ASSISTANT = { name: 'Virtual assistant', initials: 'VA' }
+
+function withAssistantLog(state, text, customer) {
+  const entry = { id: nextId(), who: ASSISTANT.name, initials: ASSISTANT.initials, text, when: 'Just now', customer, fresh: true, ai: true }
+  return { ...state, activity: [entry, ...state.activity.map(a => (a.fresh ? { ...a, fresh: false } : a))] }
+}
+
+const bump =(state, key) => ({ ...state, metrics: { ...state.metrics, [key]: state.metrics[key] + 1 } })
 
 const setCaseStatus = (state, id, status) => ({
   ...state,
@@ -72,30 +80,57 @@ export function reducer(state, action) {
     case 'channel':
       return { ...state, channel: action.value }
 
-    // Calls
+    // Virtual assistant (IVR) handoff
+    case 'simulateContact': {
+      if (state.call.state === 'active') return state
+      const sc = SCENARIOS[action.id]
+      if (!sc) return state
+      return {
+        ...state,
+        currentCustomer: sc.customer,
+        recordTab: 'info',
+        call: { state: 'ivr', customer: sc.customer, channel: sc.channel, scenario: sc.id, summary: null, start: 0, total: 0 },
+      }
+    }
+    case 'handoff': {
+      if (state.call.state !== 'ivr' || state.call.scenario !== action.scenario) return state
+      return { ...state, call: { ...state.call, state: 'ringing', summary: action.summary } }
+    }
+
+    // Calls and SMS
     case 'answer': {
       if (state.call.state !== 'ringing') return state
-      const next = bump({ ...state, presence: 'Busy', call: { ...state.call, state: 'active', start: now, total: 0 } }, 'calls')
-      return withLog(next, `answered an inbound call from ${CUSTOMERS[state.call.customer].name}`, state.call.customer)
+      const { customer, channel = 'call', summary } = state.call
+      const name = CUSTOMERS[customer].name
+      const sms = channel === 'sms'
+      let next = { ...state, presence: 'Busy', call: { ...state.call, state: 'active', start: now, total: 0 } }
+      next = bump(next, sms ? 'chats' : 'calls')
+      if (sms) next = { ...next, channel: 'chat' }
+      if (summary) {
+        next = withAssistantLog(next, `handed over ${name}: ${summary.headline}`, customer)
+        if (summary.caseId) next = { ...next, openCase: summary.caseId, caseTab: 'tasks' }
+      }
+      return withLog(next, sms ? `accepted an SMS conversation with ${name}` : `answered an inbound call from ${name}`, customer)
     }
     case 'dial': {
       if (state.call.state === 'active') return state
       const id = state.currentCustomer
-      const next = bump({ ...state, presence: 'Busy', call: { state: 'active', customer: id, start: now, total: 0 } }, 'calls')
+      const next = bump({ ...state, presence: 'Busy', call: { state: 'active', customer: id, channel: 'call', start: now, total: 0 } }, 'calls')
       return withLog(next, `called ${CUSTOMERS[id].name}`, id)
     }
     case 'decline':
-      return state.call.state === 'ringing' ? { ...state, call: { ...state.call, state: 'idle' } } : state
+      return ['ringing', 'ivr'].includes(state.call.state) ? { ...state, call: { ...state.call, state: 'idle', summary: null, scenario: null } } : state
     case 'endCall':
     case 'transfer': {
       if (state.call.state !== 'active') return state
       const total = callSeconds(state.call, now)
       let next = { ...state, presence: 'Available', call: { ...state.call, state: 'idle', total } }
+      const what = state.call.channel === 'sms' ? 'conversation' : 'call'
       if (action.type === 'transfer') {
         next = bump(next, 'support')
-        return withLog(next, `transferred the call to ${action.team}`, state.call.customer)
+        return withLog(next, `transferred the ${what} to ${action.team}`, state.call.customer)
       }
-      return withLog(next, `ended the call (${formatDuration(total)})`, state.call.customer)
+      return withLog(next, `ended the ${what} (${formatDuration(total)})`, state.call.customer)
     }
 
     // Communication

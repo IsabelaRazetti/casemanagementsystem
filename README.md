@@ -56,6 +56,21 @@ src/
   pages/        Dashboard, Cases, CustomerWorkspace
 ```
 
+## AI: virtual assistant handoff
+
+Before a call or SMS reaches an agent, a virtual assistant (the IVR) verifies the customer, asks what they need and captures the key details. The agent then sees a summary **before answering**: what the customer wants in one sentence, how they were verified, what they already said, their sentiment, the linked case and a suggested next step. The full conversation is one click away.
+
+When the agent answers, the summary goes into the activity log and the linked case opens, so nobody asks the customer to repeat themselves.
+
+Try it with **Simulate contact** in the top bar: a referral call, a cancellation call and an SMS about a renewal price.
+
+**Prototype vs production.** In this prototype the summaries are written in advance (`src/ai/assistant.js`) so the demo always works. To make it real, replace `getHandoffSummary` with a call to a server route (for example a Vercel function) that sends the transcript to Claude and returns the same shape. The API key stays on the server.
+
+**Guardrails built into the design**
+- The assistant suggests; the agent decides. Nothing happens automatically.
+- Every summary is labelled as AI-generated and shows the conversation it came from.
+- Policy details are only discussed once the customer is verified, and the summary says how.
+
 ## Design system: Casework
 
 The UI is built on **Casework**, a small design system made for this product.

@@ -65,7 +65,7 @@ export function ActivityList({ items, limit = 5, empty }) {
     <div className="cw-activity">
       {items.slice(0, limit).map(a => (
         <div key={a.id} className={`cw-activity__item${a.fresh ? ' fresh' : ''}`}>
-          <Avatar initials={a.initials} tone={a.who === AGENT.name ? 'agent' : undefined} />
+          <Avatar initials={a.initials} tone={a.who === AGENT.name ? 'agent' : a.ai ? 'team' : undefined} />
           <div>
             <p className="cw-activity__text"><b>{a.who}</b> {a.text}</p>
             <span className="cw-activity__time">{a.when}</span>

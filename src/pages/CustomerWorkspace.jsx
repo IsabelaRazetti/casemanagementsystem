@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import {
-  FileText, Mail, MessageCircle, Phone, PhoneCall, PhoneForwarded, PhoneOff, Send, Settings, StickyNote,
+  FileText, Mail, MessageCircle, Phone, PhoneCall, PhoneForwarded, PhoneOff, Send, Settings, StickyNote, X,
 } from 'lucide-react'
 import { AGENT, CUSTOMERS, TASK_ORDER, TEAMS } from '../state/data.js'
+import { SCENARIOS } from '../state/scenarios.js'
+import HandoffSummary from '../components/HandoffSummary.jsx'
 import { callSeconds, formatDuration } from '../state/reducer.js'
 import { ActivityList, Avatar, Button, Data, Field, Panel, StatusBadge, Tabs } from '../components/ui.jsx'
 import DocModal from '../components/DocModal.jsx'
@@ -23,11 +25,17 @@ function TaskItem({ id, current, onPick }) {
 function CallCard({ cu, call, now, dispatch, notify }) {
   const [transferOpen, setTransferOpen] = useState(false)
   const status = call.customer === cu.id ? call.state : 'idle'
+  const sms = call.customer === cu.id && call.channel === 'sms'
+  const what = sms ? 'SMS conversation' : 'call'
+  const viaAssistant = call.customer === cu.id && !!call.scenario && status !== 'idle'
 
   let line = 'Not on a call'
-  if (status === 'ringing') line = 'Incoming call'
-  else if (status === 'active') line = `On call · ${formatDuration(callSeconds(call, now))}`
-  else if (call.customer === cu.id && call.total) line = `Last call ${formatDuration(call.total)}`
+  if (status === 'ivr') line = sms ? 'Texting the virtual assistant' : 'Talking to the virtual assistant'
+  else if (status === 'ringing') line = sms ? 'Incoming SMS conversation' : 'Incoming call'
+  else if (status === 'active') line = `${sms ? 'SMS conversation' : 'On call'} · ${formatDuration(callSeconds(call, now))}`
+  else if (call.customer === cu.id && call.total) line = `Last ${what} ${formatDuration(call.total)}`
+  const AnswerIcon = sms ? MessageCircle : Phone
+  const EndIcon = sms ? X : PhoneOff
 
   return (
     <div className="callcard">
@@ -35,25 +43,27 @@ function CallCard({ cu, call, now, dispatch, notify }) {
       <div>
         <h2 className="callcard__name">{cu.title} {cu.name}</h2>
         <div className="callcard__queue">
-          <span className="cw-tag">{cu.direction === 'IB' ? 'Inbound' : 'Outbound'} · {cu.queue}</span>
+          <span className="cw-tag">{sms ? 'SMS' : viaAssistant || cu.direction === 'IB' ? 'Inbound' : 'Outbound'} · {cu.queue}</span>
         </div>
-        <p className={`cw-timer${status === 'active' ? ' cw-live' : ''}`} style={{ marginTop: 'var(--space-2)' }}>{line}</p>
+        <p className={status === 'active' ? 'cw-timer cw-live' : 'cw-muted'} style={{ marginTop: 'var(--space-2)' }}>{line}</p>
       </div>
 
       {status === 'ringing' && (
         <div className="cw-call">
-          <button className="cw-call__btn cw-call__btn--answer" aria-label="Answer call" title="Answer call" onClick={() => { dispatch({ type: 'answer' }); notify('Call connected') }}><Phone /></button>
-          <button className="cw-call__btn cw-call__btn--end" aria-label="Decline call" title="Decline call" onClick={() => { dispatch({ type: 'decline' }); notify('Call declined') }}><PhoneOff /></button>
+          <button className="cw-call__btn cw-call__btn--answer" aria-label={sms ? 'Accept conversation' : 'Answer call'} title={sms ? 'Accept conversation' : 'Answer call'}
+            onClick={() => { dispatch({ type: 'answer' }); notify(sms ? 'Conversation accepted' : 'Call connected') }}><AnswerIcon /></button>
+          <button className="cw-call__btn cw-call__btn--end" aria-label={sms ? 'Decline conversation' : 'Decline call'} title={sms ? 'Decline conversation' : 'Decline call'}
+            onClick={() => { dispatch({ type: 'decline' }); notify(sms ? 'Conversation declined' : 'Call declined') }}><EndIcon /></button>
         </div>
       )}
       {status === 'active' && (
         <>
           <div className="cw-call">
-            <button className="cw-call__btn" aria-label="Call details" title="Call details" onClick={() => notify('Call recording is on for quality and training')}><PhoneCall /></button>
-            <button className="cw-call__btn cw-call__btn--end" aria-label="End call" title="End call" onClick={() => {
-              dispatch({ type: 'endCall' }); setTransferOpen(false); notify(`Call ended · ${formatDuration(callSeconds(call))}`)
-            }}><PhoneOff /></button>
-            <button className="cw-call__btn" aria-label="Transfer call" title="Transfer call" aria-expanded={transferOpen} onClick={() => setTransferOpen(o => !o)}><PhoneForwarded /></button>
+            {!sms && <button className="cw-call__btn" aria-label="Call details" title="Call details" onClick={() => notify('Call recording is on for quality and training')}><PhoneCall /></button>}
+            <button className="cw-call__btn cw-call__btn--end" aria-label={`End ${what}`} title={`End ${what}`} onClick={() => {
+              dispatch({ type: 'endCall' }); setTransferOpen(false); notify(`${sms ? 'Conversation' : 'Call'} ended · ${formatDuration(callSeconds(call))}`)
+            }}><EndIcon /></button>
+            <button className="cw-call__btn" aria-label={`Transfer ${what}`} title={`Transfer ${what}`} aria-expanded={transferOpen} onClick={() => setTransferOpen(o => !o)}><PhoneForwarded /></button>
           </div>
           {transferOpen && (
             <div className="transfer">
@@ -64,12 +74,12 @@ function CallCard({ cu, call, now, dispatch, notify }) {
           )}
         </>
       )}
-      {status === 'idle' && (
+      {(status === 'idle' || (status === 'ivr' && call.customer !== cu.id)) && (
         <div className="cw-call">
           <button
             className="cw-call__btn cw-call__btn--answer" aria-label={`Call ${cu.name}`}
-            disabled={call.state === 'active'} title={call.state === 'active' ? 'Finish your current call first' : `Call ${cu.name}`}
-            style={call.state === 'active' ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+            disabled={call.state !== 'idle'} title={call.state !== 'idle' ? 'Finish your current contact first' : `Call ${cu.name}`}
+            style={call.state !== 'idle' ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
             onClick={() => { dispatch({ type: 'dial' }); notify(`Calling ${cu.name}`) }}
           ><PhoneCall /></button>
         </div>
@@ -242,6 +252,9 @@ export default function CustomerWorkspace({ state, dispatch, notify, go, now }) 
   const [doc, setDoc] = useState(null)
   const [current, ...upcoming] = TASK_ORDER
   const pick = id => dispatch({ type: 'pickCustomer', id })
+  const { call } = state
+  const scenario = call.scenario && call.customer === cu.id && ['ivr', 'ringing', 'active'].includes(call.state)
+    ? SCENARIOS[call.scenario] : null
 
   function attach() {
     setEmail(m => ({ ...m, body: (m.body ? m.body + '\n\n' : '') + `Attached: ${doc}` }))
@@ -261,6 +274,17 @@ export default function CustomerWorkspace({ state, dispatch, notify, go, now }) 
 
       <Panel className="contact">
         <CallCard cu={cu} call={state.call} now={now} dispatch={dispatch} notify={notify} />
+        {scenario && (
+          <div className="handoff-wrap">
+            <HandoffSummary
+              scenario={scenario} stage={state.call.state} summary={state.call.summary}
+              onHandoff={summary => {
+                dispatch({ type: 'handoff', scenario: scenario.id, summary })
+                notify(`${cu.name} is ready for you`)
+              }}
+            />
+          </div>
+        )}
         <div className="composer">
           <div className="cw-tabs" role="tablist" aria-label="Contact channel">
             {CHANNELS.map(([key, Icon, label]) => (
