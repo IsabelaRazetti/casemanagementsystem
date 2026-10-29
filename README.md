@@ -62,6 +62,8 @@ Before a call or SMS reaches an agent, a virtual assistant (the IVR) verifies th
 
 When the agent answers, the summary goes into the activity log and the linked case opens, so nobody asks the customer to repeat themselves.
 
+While the customer is with the assistant, the agent only sees that a contact is on its way. The summary arrives in one piece at handoff, so the agent is never distracted by a conversation they cannot act on yet.
+
 Try it with **Simulate contact** in the top bar: a referral call, a cancellation call and an SMS about a renewal price.
 
 **Prototype vs production.** In this prototype the summaries are written in advance (`src/ai/assistant.js`) so the demo always works. To make it real, replace `getHandoffSummary` with a call to a server route (for example a Vercel function) that sends the transcript to Claude and returns the same shape. The API key stays on the server.
